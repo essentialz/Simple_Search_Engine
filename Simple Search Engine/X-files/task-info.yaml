@@ -1,0 +1,520 @@
+type: edu
+custom_name: stage4
+files:
+- name: src/search/Main.java
+  visible: true
+  text: |
+    package search;
+
+    public class Main {
+        public static void main(String[] args) {
+            System.out.println("Hello World!");
+        }
+    }
+  learner_created: false
+- name: test/SimpleSearchEngineTest.java
+  visible: false
+  text: |+
+    import org.hyperskill.hstest.stage.StageTest;
+    import org.hyperskill.hstest.testcase.CheckResult;
+    import org.hyperskill.hstest.testcase.TestCase;
+
+    import java.util.ArrayList;
+    import java.util.Arrays;
+    import java.util.LinkedList;
+    import java.util.List;
+
+    class TestClue {
+        String input;
+
+        TestClue(String input) {
+            this.input = input;
+        }
+    }
+
+    public class SimpleSearchEngineTest extends StageTest<TestClue> {
+
+        public static final String test1 =
+                "2\n" +
+                "0";
+
+        public static final String test2 =
+                "1\n" +
+                "burgess\n" +
+                "0";
+
+        public static final String test3 =
+                "1\n" +
+                "erick\n" +
+                "0";
+
+        public static final String test4 =
+                "3\n" +
+                "1\n" +
+                "burgess\n" +
+                "2\n" +
+                "2\n" +
+                "1\n" +
+                "erick\n" +
+                "0";
+
+        public static final String test5 =
+                "2\n" +
+                "1\n" +
+                "@\n" +
+                "1\n" +
+                "this text never find some match\n" +
+                "2\n" +
+                "0";
+
+        public static final String test6 =
+                "0";
+
+        public static final String test7 =
+                "1\n" +
+                "this text never find some match\n" +
+                "0";
+
+        public static final String test8 =
+            "1\n" +
+            "h\n" +
+            "2\n" +
+            "1\n" +
+            "@gmail.com\n" +
+            "0";
+
+        public static final String test9 =
+            "4\n" +
+            "2\n" +
+            "2\n" +
+            "1\n" +
+            "this text never gonna be matched\n" +
+            "1\n" +
+            "h\n" +
+            "1\n" +
+            "@GMAIL\n" +
+            "0";
+
+        @Override
+        public List<TestCase<TestClue>> generate() {
+
+            List<TestCase<TestClue>> tests = new ArrayList<>();
+
+            for (String input : new String[]{
+                test1, test2, test3, test4, test5, test6, test7, test8, test9}) {
+
+                tests.add(new TestCase<TestClue>()
+                    .setAttach(new TestClue(input))
+                    .setInput(input)
+                    .addArguments("--data", "names.txt")
+                    .addFile("names.txt", SearchEngineTests.NAMES));
+            }
+
+            return tests;
+        }
+
+        @Override
+        public CheckResult check(String reply, TestClue clue) {
+            String cR = "\n";
+            List<String> outputLines = new LinkedList<String>(Arrays.asList(reply.split(cR)));
+            String[] inputLines = clue.input.split(cR);
+            String[] reference;
+            String[] idealSearchResult;
+
+            reference = SearchEngineTests.NAMES.split("\n");
+
+            //clear the list of unnecessary lines, if any
+            List<String> cleanedOutput = new ArrayList<String>();
+            for (int i = 0; i < outputLines.size(); i++) {
+                if (containsItemFromList(outputLines.get(i), reference)) {
+                    cleanedOutput.add(outputLines.get(i));
+                }
+            }
+
+            int currentInputLine = 0;
+            int currentOutputLine = 0;
+
+            int actionType = -1;
+
+            int searchIteration = 1;
+            int fullOutputIteration = 1;
+
+            while (actionType != 0) {
+                try {
+                    actionType = Integer.parseInt(inputLines[currentInputLine]);
+                } catch (NumberFormatException e) {
+                    return new CheckResult(false,
+                        "The number of menu item must be number!");
+                }
+
+                switch (actionType) {
+                    case 1:
+                        currentInputLine++;
+
+                        String toSearch = inputLines[currentInputLine];
+
+                        currentInputLine++;
+
+                        idealSearchResult = Arrays.stream(reference)
+                            .filter(line -> line.toLowerCase()
+                                .contains(toSearch.toLowerCase().trim()))
+                            .toArray(String[]::new);
+
+                        String[] currentSearchResult = new String[idealSearchResult.length];
+                        for (int i = 0; i < currentSearchResult.length; i++) {
+                            try {
+                                currentSearchResult[i] = cleanedOutput.get(currentOutputLine);
+                            } catch (IndexOutOfBoundsException e) {
+                                return new CheckResult(false,
+                                    "Seems like you output less than expected. " +
+                                        "Either you've lost someone in the printing of all " +
+                                        "people, or you haven't printed all the necessary " +
+                                        "people in the search.");
+                            }
+                            currentOutputLine++;
+                        }
+
+                        Arrays.sort(currentSearchResult);
+                        Arrays.sort(idealSearchResult);
+
+                        if (!Arrays.equals(currentSearchResult, idealSearchResult)) {
+                            return new CheckResult(false,
+                                "Search result is not equal " +
+                                    "to the expected search");
+                        }
+
+                        searchIteration++;
+                        break;
+                    case 2:
+                        currentInputLine++;
+
+                        String[] currentAll = new String[reference.length];
+                        for (int i = 0; i < currentAll.length; i++) {
+                            try {
+                                currentAll[i] = cleanedOutput.get(currentOutputLine);
+                            } catch (IndexOutOfBoundsException e) {
+                                return new CheckResult(false,
+                                    "Seems like you output less than expected. " +
+                                        "Either you've lost someone in the printing of all " +
+                                        "people, or you haven't printed all the necessary " +
+                                        "people in the search.");
+                            }
+                            currentOutputLine++;
+                        }
+
+                        Arrays.sort(currentAll);
+                        Arrays.sort(reference);
+
+                        if (!Arrays.equals(currentAll, reference)) {
+                            return new CheckResult(false,
+                                "Looks like you're printing " +
+                                    "unknown people when you enter option 2.");
+                        }
+
+                        fullOutputIteration++;
+                        break;
+                    case 0:
+                        return CheckResult.correct();
+                    default:
+                        currentInputLine++;
+                        break;
+                }
+            }
+
+            return CheckResult.correct();
+        }
+
+        private static boolean containsItemFromList(String inputStr, String[] items) {
+            return Arrays.stream(items).parallel().anyMatch(inputStr::contains);
+        }
+    }
+
+  learner_created: false
+- name: src/search/Display.java
+  visible: true
+  text: |
+    package search;
+
+    import java.util.List;
+
+    public enum Display {
+        ENTER_NUMBER_OF_PEOPLE("Enter the number of people:"),
+        ENTER_ALL_PEOPLE("Enter all people:"),
+        ENTER_NAME_OR_EMAIL("Enter a name or email to search all suitable people."),
+        NO_MATCHES_FOUND("No matching people found."),
+        INCORRECT_OPTION("Incorrect option! Try again."),
+        MENU_HEADER("=== Menu ==="),
+        LIST_OF_PEOPLE_HEADER("=== List of people ==="),
+        BYE("Bye!"),
+        SPACER("");
+
+        private final String prompt;
+
+        Display(String prompt) {
+            this.prompt = prompt;
+        }
+
+        public static void display(Display item) {
+            System.out.println(item.prompt);
+        }
+
+        public static void displayPeople(List<Person> people) {
+            people.forEach(System.out::println);
+        }
+
+        public static void displayMenu() {
+            System.out.print(Request.getMenu());
+        }
+    }
+  learner_created: true
+- name: src/search/Person.java
+  visible: true
+  text: |
+    package search;
+
+    public class Person {
+        private final String firstName;
+        private final String lastName;
+        private final String email;
+
+        public Person(String firstName) {
+            this(firstName, "", "");
+        }
+
+        public Person(String firstName, String lastName) {
+            this(firstName, lastName, "");
+        }
+
+        public Person(String firstName, String lastName, String email) {
+            this.firstName = firstName;
+            this.lastName = lastName;
+            this.email = email;
+        }
+
+        public boolean contains(String query) {
+            return toString().toLowerCase().contains(query.toLowerCase());
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s %s %s", firstName, lastName, email).trim();
+        }
+    }
+  learner_created: true
+- name: src/search/Request.java
+  visible: true
+  text: |-
+    package search;
+
+    import java.util.Optional;
+
+    public enum Request {
+        FIND_A_PERSON(1, "Find a person"),
+        PRINT_ALL_PEOPLE(2, "Print all people"),
+        EXIT(0, "Exit");
+
+        private final int identifier;
+        private final String label;
+
+        Request(int identifier, String label) {
+            this.identifier = identifier;
+            this.label = label;
+        }
+
+        public static String getMenu() {
+            StringBuilder menu = new StringBuilder();
+
+            for (Request o: Request.values()) {
+                menu.append(String.format("%d. %s.%n", o.identifier, o.label));
+            }
+
+            return menu.toString();
+        }
+
+        public static Optional<Request> getRequest(int identifier) {
+            for (Request o: Request.values()) {
+                if (o.identifier == identifier) {
+                    return Optional.of(o);
+                }
+            }
+
+            return Optional.empty();
+        }
+    }
+  learner_created: true
+- name: src/search/Program.java
+  visible: true
+  text: |
+    package search;
+
+    import java.util.ArrayList;
+    import java.util.List;
+    import java.util.Optional;
+    import java.util.Scanner;
+
+    import static search.Display.*;
+    import static search.Request.*;
+
+    public class Program {
+        private static final Scanner SCANNER = new Scanner(System.in);
+
+        public static void run() {
+            display(ENTER_NUMBER_OF_PEOPLE);
+            int numOfPeople = getNumberResponse();
+
+            display(ENTER_ALL_PEOPLE);
+            List<Person> people = getPeople(numOfPeople);
+            display(SPACER);
+
+            Optional<Request> request;
+
+            do {
+                display(MENU_HEADER);
+                displayMenu();
+                request = getRequest(getNumberResponse());
+                display(SPACER);
+
+                if (request.isPresent()) {
+                    processRequest(people, request.get());
+                } else {
+                    display(INCORRECT_OPTION);
+                }
+
+                display(SPACER);
+            } while (request.isEmpty() || request.get() != EXIT);
+        }
+
+        private static int getNumberResponse() {
+            int input = SCANNER.nextInt();
+            SCANNER.nextLine();
+
+            return input;
+        }
+
+        private static String getStringResponse() {
+            return SCANNER.nextLine();
+        }
+
+        private static List<Person> getPeople(int numOfPeople) {
+            List<Person> people = new ArrayList<>();
+
+            for (int n = 0; n < numOfPeople; n++) {
+                String[] data = getStringResponse().split(" ");
+                people.add(createPerson(data));
+            }
+
+            return people;
+        }
+
+        private static Person createPerson(String[] data) {
+            return data.length == 1 ? new Person(data[0])
+                    : data.length == 2 ? new Person(data[0], data[1])
+                    : new Person(data[0], data[1], data[2]);
+        }
+
+        private static void processRequest(List<Person> people, Request request) {
+            switch (request) {
+                case FIND_A_PERSON:
+                    display(ENTER_NAME_OR_EMAIL);
+                    String query = getStringResponse();
+                    processQuery(people, query);
+                    break;
+                case PRINT_ALL_PEOPLE:
+                    display(LIST_OF_PEOPLE_HEADER);
+                    displayPeople(people);
+                    break;
+                default:
+                    display(BYE);
+                    break;
+            }
+        }
+
+        private static void processQuery(List<Person> people, String query) {
+                List<Person> matches = getMatches(people, query);
+
+                if (matches.isEmpty()){
+                    Display.display(NO_MATCHES_FOUND);
+                } else {
+                    displayPeople(matches);
+                }
+        }
+
+        private static List<Person> getMatches(List<Person> people, String query) {
+            List<Person> matches = new ArrayList<>();
+
+            for (Person p: people) {
+                if (p.contains(query)) {
+                    matches.add(p);
+                }
+            }
+
+            return matches;
+        }
+
+    }
+  learner_created: true
+- name: test/SearchEngineTests.java
+  visible: false
+  text: |
+    public class SearchEngineTests {
+        public static final String NAMES = "Kristofer Galley\n" +
+            "Fernando Marbury fernando_marbury@gmail.com\n" +
+            "Kristyn Nix nix-kris@gmail.com\n" +
+            "Regenia Enderle\n" +
+            "Malena Gray\n" +
+            "Colette Mattei\n" +
+            "Wendolyn Mcphillips\n" +
+            "Jim Gray\n" +
+            "Coreen Beckham\n" +
+            "Bob Yeh bobyeah@gmail.com\n" +
+            "Shannan Strope stropeshah@gmail.com\n" +
+            "Yer Fillion\n" +
+            "Margene Resendez marres@gmail.com\n" +
+            "Blossom Ambler\n" +
+            "Teri Ledet teri_ledet@gmail.com\n" +
+            "Dana Baron baron@gmail.com\n" +
+            "Abram Goldsberry\n" +
+            "Yer Leopold\n" +
+            "Stefania Trunzo\n" +
+            "Alexis Leopold\n" +
+            "Carlene Pompa\n" +
+            "Oliver Dacruz\n" +
+            "Jonie Richter\n" +
+            "Pasquale Gallien gallien@evilcorp.com\n" +
+            "Verdie Gentle\n" +
+            "Gerardo Strouth gallien@evilcorp.com\n" +
+            "Agripina Dones\n" +
+            "Latricia Niebuhr\n" +
+            "Malena Schommer\n" +
+            "Drema Leopold\n" +
+            "Heide Payeur\n" +
+            "Ranae Digiovanni\n" +
+            "Simona Pereira\n" +
+            "Nick Digiovanni\n" +
+            "Angelita Wigington gallien@evilcorp.com\n" +
+            "Elin Gray\n" +
+            "Dwain Trunzo\n" +
+            "Boris Beiler\n" +
+            "Remi Malek fsociefy@gmail.com\n" +
+            "Demetria Hostetler gallien@evilcorp.com\n" +
+            "Nydia Mcduffie\n" +
+            "Florencio Defibaugh\n" +
+            "Warner Giblin\n" +
+            "May Mans\n" +
+            "Shu Gray\n" +
+            "Kaycee Gray\n" +
+            "Victorina Froehlich victory@gmail.com\n" +
+            "Roseanne Gray\n" +
+            "Erica Radford hisam@gmail.com\n" +
+            "Elyse Pauling";
+    }
+  learner_created: false
+- name: src/search/PersonService.java
+  visible: true
+  learner_created: true
+feedback_link: https://hyperskill.org/projects/66/stages/357/implement#comment
+status: Solved
+feedback:
+  message: Congratulations!
+  time: Sun, 29 Aug 2021 06:33:17 UTC
+record: 4
